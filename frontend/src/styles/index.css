@@ -1,0 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-dm-sans: 'DM Sans', sans-serif;
+    --font-hanken: 'Hanken Grotesk', sans-serif;
+  }
+
+  body {
+    font-family: var(--font-dm-sans);
+    background-color: #131313;
+    color: #e2e2e2;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0e0e0e;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #eab308;
+  }
+}
+
+/* Custom Luxe Industrial Design Utilities */
+.bg-canvas {
+  background-color: #131313;
+}
+
+.bg-surface-dark {
+  background-color: #0e0e0e;
+}
+
+.bg-card-dark {
+  background-color: #1b1b1b;
+}
+
+.bg-card-elevated {
+  background-color: #1f1f1f;
+}
+
+.text-gold {
+  color: #EAB308;
+}
+
+.text-gold-bright {
+  color: #ffd165;
+}
+
+.border-gold-subtle {
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.border-card {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(27, 27, 27, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-hover {
+  transition: all 0.3s ease;
+}
+.glass-card-hover:hover {
+  background: rgba(31, 31, 31, 0.85);
+  border-color: rgba(234, 179, 8, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px -10px rgba(234, 179, 8, 0.15);
+}
+
+.glow-gold {
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.2);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #ffd165 0%, #eab308 100%);
+  color: #131313;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+.btn-gold:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #ffd165 100%);
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-outline-gold {
+  background: transparent;
+  border: 1px solid #eab308;
+  color: #ffd165;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+.btn-outline-gold:hover {
+  background: rgba(234, 179, 8, 0.1);
+  border-color: #ffd165;
+  color: #ffffff;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #ffffff 30%, #ffd165 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.label-caps {
+  font-family: var(--font-hanken);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}

@@ -1,4 +1,5 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
     createService,
@@ -10,24 +11,25 @@ const {
 
 const router = express.Router();
 
-// Create a new service
+// Create a new service (Protected)
 // POST /api/services
-router.post("/", createService);
+router.post("/", protect, createService);
 
-// Get all services
+// Get all services (Public)
 // GET /api/services
 router.get("/", getServices);
 
-// Get a single service by ID
+// Get a single service by ID (Public)
 // GET /api/services/:id
 router.get("/:id", getServiceById);
 
-// Update a service
+// Update a service (Protected)
 // PUT /api/services/:id
-router.put("/:id", updateService);
+router.put("/:id", protect, updateService);
 
-// Delete a service
+// Delete a service (Protected)
 // DELETE /api/services/:id
-router.delete("/:id", deleteService);
+router.delete("/:id", protect, deleteService);
 
 module.exports = router;
+

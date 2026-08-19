@@ -48,10 +48,21 @@ const createEnquiry = async (req, res) => {
 
         // Trigger notification services safely after MongoDB save
         try {
-            await Promise.allSettled([
+            const results = await Promise.allSettled([
                 sendEmailNotification(enquiry),
                 sendWhatsAppNotification(enquiry)
             ]);
+
+            const emailResult = results[0];
+            if (emailResult.status === 'fulfilled') {
+                if (emailResult.value?.success) {
+                    console.log(`[ENQUIRY CONTROLLER] Email notification SENT for enquiry ID: ${enquiry._id}`);
+                } else {
+                    console.warn(`[ENQUIRY CONTROLLER] Email notification NOT sent for enquiry ID: ${enquiry._id} — Reason: ${emailResult.value?.message || emailResult.value?.error}`);
+                }
+            } else {
+                console.error(`[ENQUIRY CONTROLLER] Email notification failed for enquiry ID: ${enquiry._id} — Error:`, emailResult.reason);
+            }
         } catch (notifError) {
             console.error("Error invoking notification services:", notifError.message || notifError);
         }

@@ -1,28 +1,25 @@
-import { apiRequest } from './api';
+import api from './api';
 
 export const serviceService = {
-  // GET /api/services
+  getServices: async () => {
+    return await api.get('/services');
+  },
   getAll: async () => {
-    return await apiRequest('/api/services', 'GET');
+    return await api.get('/services');
   },
-
-  // GET /api/services/:id
-  getById: async (id) => {
-    return await apiRequest(`/api/services/${id}`, 'GET');
+  getServiceById: async (id) => {
+    return await api.get(`/services/${id}`);
   },
-
-  // POST /api/services
-  create: async (data) => {
-    return await apiRequest('/api/services', 'POST', data);
+  createService: async (data) => {
+    return await api.post('/services', data);
   },
-
-  // PUT /api/services/:id
-  update: async (id, data) => {
-    return await apiRequest(`/api/services/${id}`, 'PUT', data);
+  updateService: async (id, data) => {
+    return await api.put(`/services/${id}`, data);
   },
-
-  // DELETE /api/services/:id
-  delete: async (id) => {
-    return await apiRequest(`/api/services/${id}`, 'DELETE');
-  }
+  deleteService: async (id) => {
+    return await api.delete(`/services/${id}`);
+  },
 };
+
+export default serviceService;
+

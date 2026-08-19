@@ -1,4 +1,5 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
     createEnquiry,
@@ -10,24 +11,24 @@ const {
 
 const router = express.Router();
 
-// Create a new enquiry
+// Create a new enquiry (Public for website contact form)
 // POST /api/enquiries
 router.post("/", createEnquiry);
 
-// Get all enquiries
+// Get all enquiries (Protected - Admin only)
 // GET /api/enquiries
-router.get("/", getEnquiries);
+router.get("/", protect, getEnquiries);
 
-// Get a single enquiry
+// Get a single enquiry (Protected - Admin only)
 // GET /api/enquiries/:id
-router.get("/:id", getEnquiryById);
+router.get("/:id", protect, getEnquiryById);
 
-// Update an enquiry
+// Update an enquiry (Protected - Admin only)
 // PUT /api/enquiries/:id
-router.put("/:id", updateEnquiry);
+router.put("/:id", protect, updateEnquiry);
 
-// Delete an enquiry
+// Delete an enquiry (Protected - Admin only)
 // DELETE /api/enquiries/:id
-router.delete("/:id", deleteEnquiry);
+router.delete("/:id", protect, deleteEnquiry);
 
-module.exports = router;
+module.exports = router;

@@ -1,55 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { serviceService } from '../../services/serviceService';
-import { ConfirmModal } from '../../components/ConfirmModal';
-import { Toast } from '../../components/Toast';
-import { ImageWithFallback } from '../../components/ImageWithFallback';
-import { Plus, Edit2, Trash2, RefreshCw, X, AlertCircle } from 'lucide-react';
+import { Briefcase, Plus, Edit, Trash2, X, Check } from 'lucide-react';
+import serviceService from '../../services/serviceService';
+import Seo from '../../components/common/Seo';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorMessage from '../../components/common/ErrorMessage';
 
-const INITIAL_FORM = {
-  title: '',
-  description: '',
-  category: 'Web Development',
-  image: '',
-  status: 'active'
-};
-
-export function AdminServices() {
+const AdminServices = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState(INITIAL_FORM);
-  const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  const [deleteId, setDeleteId] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [toasts, setToasts] = useState([]);
-
-  const addToast = (message, type = 'success') => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  };
+  const [editingService, setEditingService] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    image: '',
+    status: 'active',
+  });
 
   const fetchServices = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const res = await serviceService.getAll();
-      if (res && res.success && Array.isArray(res.data)) {
-        setServices(res.data);
-      } else {
-        setServices([]);
+      setLoading(true);
+      setError(null);
+      const res = await serviceService.getServices();
+      let data = [];
+      if (Array.isArray(res)) {
+        data = res;
+      } else if (Array.isArray(res?.data)) {
+        data = res.data;
+      } else if (Array.isArray(res?.data?.data)) {
+        data = res.data.data;
       }
+      setServices(data);
     } catch (err) {
-      console.error('Error fetching admin services:', err);
-      setError(err.message || 'Unable to load services.');
-      addToast(err.message || 'Unable to load services.', 'error');
+      setError(err?.response?.data?.message || err?.message || 'Failed to fetch services.');
     } finally {
       setLoading(false);
     }
@@ -59,261 +44,229 @@ export function AdminServices() {
     fetchServices();
   }, []);
 
-  const handleOpenAddModal = () => {
-    setEditingId(null);
-    setFormData(INITIAL_FORM);
-    setFormError('');
-    setIsModalOpen(true);
+  const handleOpenCreate = () => {
+    setEditingService(null);
+    setFormData({
+      title: '',
+      description: '',
+      category: '',
+      image: '',
+      status: 'active',
+    });
+    setShowModal(true);
   };
 
-  const handleOpenEditModal = (service) => {
-    setEditingId(service._id);
+  const handleOpenEdit = (service) => {
+    setEditingService(service);
     setFormData({
       title: service.title || '',
       description: service.description || '',
-      category: service.category || 'Web Development',
+      category: service.category || '',
       image: service.image || '',
-      status: service.status || 'active'
+      status: service.status || 'active',
     });
-    setFormError('');
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    if (formLoading) return;
-    setIsModalOpen(false);
-    setEditingId(null);
-    setFormData(INITIAL_FORM);
+    setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.description.trim() || !formData.category.trim()) {
-      setFormError('Title, Description, and Category are required.');
+    if (!formData.title || !formData.description || !formData.category) {
+      alert('Title, Description, and Category are required.');
       return;
     }
 
-    setFormLoading(true);
     try {
-      if (editingId) {
-        const res = await serviceService.update(editingId, formData);
-        if (res && res.success) {
-          addToast('Service updated successfully!');
-          setServices((prev) => prev.map((s) => (s._id === editingId ? res.data : s)));
-          handleCloseModal();
-        }
+      if (editingService) {
+        await serviceService.updateService(editingService._id || editingService.id, formData);
       } else {
-        const res = await serviceService.create(formData);
-        if (res && res.success) {
-          addToast('Service created successfully!');
-          setServices((prev) => [res.data, ...prev]);
-          handleCloseModal();
-        }
+        await serviceService.createService(formData);
       }
+      setShowModal(false);
+      await fetchServices();
     } catch (err) {
-      console.error('Error saving service:', err);
-      setFormError(err.message || 'Failed to save service.');
-      addToast(err.message || 'Failed to save service.', 'error');
-    } finally {
-      setFormLoading(false);
+      alert('Operation failed: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
     }
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteId) return;
-    setDeleteLoading(true);
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this service?')) return;
     try {
-      const res = await serviceService.delete(deleteId);
-      if (res && res.success) {
-        addToast('Service deleted successfully!');
-        setServices((prev) => prev.filter((s) => s._id !== deleteId));
-        setDeleteId(null);
-      }
+      await serviceService.deleteService(id);
+      await fetchServices();
     } catch (err) {
-      console.error('Error deleting service:', err);
-      addToast(err.message || 'Failed to delete service.', 'error');
-    } finally {
-      setDeleteLoading(false);
+      alert('Delete failed: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
     }
   };
 
   return (
-    <div className="container" style={{ padding: '2.5rem 1.5rem' }}>
-      <Toast toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((item) => item.id !== id))} />
+    <>
+      <Seo title="Admin — Manage Services" />
 
-      <ConfirmModal
-        isOpen={!!deleteId}
-        title="Delete Service"
-        message="Are you sure you want to delete this service record?"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteId(null)}
-        loading={deleteLoading}
-      />
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Services Directory</h1>
+            <p className="text-xs text-gray-400 mt-1">Manage public services and active status.</p>
+          </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Services Management</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Manage digital services offerings</p>
-        </div>
-
-        <button className="btn btn-primary" onClick={handleOpenAddModal}>
-          <Plus size={18} />
-          <span>+ Add Service</span>
-        </button>
-      </div>
-
-      {loading && (
-        <div className="state-box">
-          <div className="spinner" />
-          <p style={{ color: 'var(--text-muted)' }}>Loading services...</p>
-        </div>
-      )}
-
-      {!loading && error && (
-        <div className="state-box">
-          <AlertCircle size={36} style={{ color: 'var(--danger)', marginBottom: '1rem' }} />
-          <h3>Failed to Load Services</h3>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>{error}</p>
-          <button className="btn btn-secondary btn-sm" onClick={fetchServices}>
-            <RefreshCw size={14} /> Refresh List
+          <button
+            onClick={handleOpenCreate}
+            className="btn-gold px-4 py-2.5 rounded-xl text-xs uppercase font-bold tracking-wider flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Service</span>
           </button>
         </div>
-      )}
 
-      {!loading && !error && services.length === 0 && (
-        <div className="state-box">
-          <h3>No Services Found</h3>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Add your first service record.</p>
-          <button className="btn btn-primary" onClick={handleOpenAddModal}>+ Add Service</button>
-        </div>
-      )}
-
-      {!loading && !error && services.length > 0 && (
-        <div className="table-responsive">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Image</th>
-                <th>Title & Category</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {services.map((item) => (
-                <tr key={item._id}>
-                  <td>
-                    <div style={{ width: '45px', height: '45px', borderRadius: '6px', overflow: 'hidden' }}>
-                      <ImageWithFallback src={item.image} alt={item.title} className="table-thumbnail" />
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 700 }}>{item.title}</div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>{item.category}</span>
-                  </td>
-                  <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.description}</td>
-                  <td>
-                    <span className={`badge ${item.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
-                      {item.status}
+        {loading ? (
+          <LoadingSpinner message="Fetching services database..." />
+        ) : error ? (
+          <ErrorMessage message={error} onRetry={fetchServices} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {services.map((s) => (
+              <div
+                key={s._id}
+                className="bg-[#131313] border border-white/10 rounded-2xl p-6 flex flex-col justify-between space-y-4 shadow-lg"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase">
+                      {s.category}
                     </span>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                      <button className="btn-icon" onClick={() => handleOpenEditModal(item)}>
-                        <Edit2 size={16} style={{ color: 'var(--primary)' }} />
-                      </button>
-                      <button className="btn-icon" onClick={() => setDeleteId(item._id)}>
-                        <Trash2 size={16} style={{ color: 'var(--danger)' }} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        s.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                      }`}
+                    >
+                      {s.status}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white">{s.title}</h3>
+                  <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed">{s.description}</p>
+                </div>
 
-      {isModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">{editingId ? 'Edit Service' : 'Add New Service'}</h2>
-              <button className="btn-icon" onClick={handleCloseModal}><X size={20} /></button>
-            </div>
-
-            {formError && (
-              <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '0.65rem', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                {formError}
+                <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => handleOpenEdit(s)}
+                    className="p-2 rounded-lg bg-white/5 text-gray-300 hover:text-white hover:bg-white/10"
+                    title="Edit Service"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s._id)}
+                    className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                    title="Delete Service"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            )}
+            ))}
+          </div>
+        )}
 
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label className="form-label">Title *</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Category *</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Description *</label>
-                <textarea
-                  className="form-control"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Image URL</label>
-                <input
-                  type="url"
-                  className="form-control"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Status</label>
-                <select
-                  className="form-control"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={handleCloseModal}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={formLoading}>
-                  {formLoading ? 'Saving...' : editingId ? 'Update Service' : 'Create Service'}
+        {/* Create/Edit Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#1b1b1b] border border-white/10 rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <h3 className="text-lg font-bold text-white">
+                  {editingService ? 'Edit Service' : 'Add New Service'}
+                </h3>
+                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-gray-300 mb-1">
+                    Service Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-gray-300 mb-1">
+                    Category *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Digital Marketing, Web Development..."
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-gray-300 mb-1">
+                    Description *
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-gray-300 mb-1">
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-gray-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full bg-[#131313] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 rounded-lg bg-white/5 text-gray-300 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-gold px-6 py-2 rounded-lg text-xs uppercase font-bold">
+                    Save Service
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
-}
+};
+
+export default AdminServices;

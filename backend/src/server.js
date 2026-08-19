@@ -12,6 +12,8 @@ const blogRoutes = require("./routes/blogRoutes");
 const careerRoutes = require("./routes/careerRoutes");
 const siteContentRoutes = require("./routes/siteContentRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const authRoutes = require("./routes/authRoutes");
+const { seedInitialAdmin } = require("./controllers/authController");
 
 const app = express();
 
@@ -26,6 +28,9 @@ app.get("/api/health", (req, res) => {
         message: "JM Creations API is running"
     });
 });
+
+// Auth routes
+app.use("/api/auth", authRoutes);
 
 // Enquiry routes
 app.use("/api/enquiries", enquiryRoutes);
@@ -58,6 +63,7 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
     try {
         await connectDB();
+        await seedInitialAdmin();
 
         app.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
@@ -68,4 +74,4 @@ const startServer = async () => {
     }
 };
 
-startServer();
+startServer();

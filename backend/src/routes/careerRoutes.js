@@ -1,4 +1,5 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
     createCareer,
@@ -10,24 +11,25 @@ const {
 
 const router = express.Router();
 
-// Create a new career opportunity
+// Create a new career opportunity (Protected)
 // POST /api/careers
-router.post("/", createCareer);
+router.post("/", protect, createCareer);
 
-// Get all career opportunities (supports ?status=, ?department=, ?employmentType=, ?featured= filters)
+// Get all career opportunities (supports ?status=, ?department=, ?employmentType=, ?featured= filters) (Public)
 // GET /api/careers
 router.get("/", getCareers);
 
-// Get a single career opportunity by ID
+// Get a single career opportunity by ID (Public)
 // GET /api/careers/:id
 router.get("/:id", getCareerById);
 
-// Update a career opportunity
+// Update a career opportunity (Protected)
 // PUT /api/careers/:id
-router.put("/:id", updateCareer);
+router.put("/:id", protect, updateCareer);
 
-// Delete a career opportunity
+// Delete a career opportunity (Protected)
 // DELETE /api/careers/:id
-router.delete("/:id", deleteCareer);
+router.delete("/:id", protect, deleteCareer);
 
 module.exports = router;
+

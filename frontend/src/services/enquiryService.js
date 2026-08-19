@@ -1,13 +1,21 @@
-import { apiRequest } from './api';
+import api from './api';
 
 export const enquiryService = {
-  // POST /api/enquiries
-  create: async (data) => {
-    return await apiRequest('/api/enquiries', 'POST', data);
+  getEnquiries: async () => {
+    return await api.get('/enquiries');
   },
-
-  // GET /api/enquiries
-  getAll: async () => {
-    return await apiRequest('/api/enquiries', 'GET');
-  }
+  getEnquiryById: async (id) => {
+    return await api.get(`/enquiries/${id}`);
+  },
+  createEnquiry: async (data) => {
+    return await api.post('/enquiries', data);
+  },
+  updateEnquiry: async (id, data) => {
+    return await api.put(`/enquiries/${id}`, data);
+  },
+  deleteEnquiry: async (id) => {
+    return await api.delete(`/enquiries/${id}`);
+  },
 };
+
+export default enquiryService;

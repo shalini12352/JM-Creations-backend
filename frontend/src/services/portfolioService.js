@@ -1,28 +1,21 @@
-import { apiRequest } from './api';
+import api from './api';
 
 export const portfolioService = {
-  // GET /api/portfolio
-  getAll: async () => {
-    return await apiRequest('/api/portfolio', 'GET');
+  getPortfolio: async () => {
+    return await api.get('/portfolio');
   },
-
-  // GET /api/portfolio/:id
-  getById: async (id) => {
-    return await apiRequest(`/api/portfolio/${id}`, 'GET');
+  getPortfolioById: async (id) => {
+    return await api.get(`/portfolio/${id}`);
   },
-
-  // POST /api/portfolio
-  create: async (data) => {
-    return await apiRequest('/api/portfolio', 'POST', data);
+  createPortfolio: async (data) => {
+    return await api.post('/portfolio', data);
   },
-
-  // PUT /api/portfolio/:id
-  update: async (id, data) => {
-    return await apiRequest(`/api/portfolio/${id}`, 'PUT', data);
+  updatePortfolio: async (id, data) => {
+    return await api.put(`/portfolio/${id}`, data);
   },
-
-  // DELETE /api/portfolio/:id
-  delete: async (id) => {
-    return await apiRequest(`/api/portfolio/${id}`, 'DELETE');
-  }
+  deletePortfolio: async (id) => {
+    return await api.delete(`/portfolio/${id}`);
+  },
 };
+
+export default portfolioService;

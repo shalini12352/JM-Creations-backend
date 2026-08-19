@@ -1,4 +1,5 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
     createBlog,
@@ -11,28 +12,29 @@ const {
 
 const router = express.Router();
 
-// Create a new blog post
+// Create a new blog post (Protected)
 // POST /api/blogs
-router.post("/", createBlog);
+router.post("/", protect, createBlog);
 
-// Get all blogs (supports ?status=, ?category=, ?featured= filters)
+// Get all blogs (supports ?status=, ?category=, ?featured= filters) (Public)
 // GET /api/blogs
 router.get("/", getBlogs);
 
-// Get blog by slug (registered BEFORE /:id to prevent routing conflict)
+// Get blog by slug (registered BEFORE /:id to prevent routing conflict) (Public)
 // GET /api/blogs/slug/:slug
 router.get("/slug/:slug", getBlogBySlug);
 
-// Get a single blog by ID
+// Get a single blog by ID (Public)
 // GET /api/blogs/:id
 router.get("/:id", getBlogById);
 
-// Update a blog
+// Update a blog (Protected)
 // PUT /api/blogs/:id
-router.put("/:id", updateBlog);
+router.put("/:id", protect, updateBlog);
 
-// Delete a blog
+// Delete a blog (Protected)
 // DELETE /api/blogs/:id
-router.delete("/:id", deleteBlog);
+router.delete("/:id", protect, deleteBlog);
 
 module.exports = router;
+

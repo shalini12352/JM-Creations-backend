@@ -1,42 +1,51 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import axios from 'axios';
 
-/**
- * Generic fetch wrapper with JSON handling and error handling
- */
-export async function apiRequest(endpoint, method = 'GET', data = null) {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  const options = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  };
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-  if (data) {
-    options.body = JSON.stringify(data);
-  }
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 15000,
+});
 
-  try {
-    const response = await fetch(url, options);
-    const result = await response.json();
+// Request interceptor to attach Bearer token if present
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('jmc_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-    if (!response.ok) {
-      const errorMsg = result.message || `Request failed with status ${response.status}`;
-      const error = new Error(errorMsg);
-      error.status = response.status;
-      error.data = result;
-      throw error;
+// Response interceptor for consistent data extraction and error handling
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const status = error.response?.status || 500;
+    const customError = {
+      message: error.response?.data?.message || error.message || 'An unexpected API error occurred',
+      status,
+      data: error.response?.data || null,
+    };
+
+    // If 401 Unauthorized occurs on admin endpoints, clear session
+    if (status === 401 && !error.config?.url?.includes('/auth/login')) {
+      localStorage.removeItem('jmc_token');
+      localStorage.removeItem('jmc_user');
+      localStorage.removeItem('jmc_admin_auth');
+      if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
+        window.location.href = '/admin/login';
+      }
     }
 
-    return result;
-  } catch (err) {
-    if (!err.status) {
-      console.error(`Network or Server error connecting to ${url}:`, err);
-      const networkErr = new Error('Unable to connect to the backend server.');
-      networkErr.status = 500;
-      throw networkErr;
-    }
-    throw err;
+    return Promise.reject(customError);
   }
-}
+);
+
+export default api;
+

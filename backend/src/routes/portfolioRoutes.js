@@ -1,4 +1,5 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
     getAllPortfolio,
@@ -10,24 +11,25 @@ const {
 
 const router = express.Router();
 
-// Get all portfolio projects
+// Get all portfolio projects (Public)
 // GET /api/portfolio
 router.get("/", getAllPortfolio);
 
-// Get single portfolio project by ID
+// Get single portfolio project by ID (Public)
 // GET /api/portfolio/:id
 router.get("/:id", getPortfolioById);
 
-// Create a new portfolio project
+// Create a new portfolio project (Protected)
 // POST /api/portfolio
-router.post("/", createPortfolio);
+router.post("/", protect, createPortfolio);
 
-// Update a portfolio project
+// Update a portfolio project (Protected)
 // PUT /api/portfolio/:id
-router.put("/:id", updatePortfolio);
+router.put("/:id", protect, updatePortfolio);
 
-// Delete a portfolio project
+// Delete a portfolio project (Protected)
 // DELETE /api/portfolio/:id
-router.delete("/:id", deletePortfolio);
+router.delete("/:id", protect, deletePortfolio);
 
 module.exports = router;
+

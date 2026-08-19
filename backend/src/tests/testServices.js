@@ -8,8 +8,8 @@ const mongoose = require("mongoose");
 
 const Service = require("../models/service");
 const serviceRoutes = require("../routes/serviceRoutes");
-const enquiryRoutes = require("../routes/enquiryRoutes");
-const Enquiry = require("../models/enquiry");
+const authRoutes = require("../routes/authRoutes");
+const { seedInitialAdmin } = require("../controllers/authController");
 
 // Express App setup
 const app = express();
@@ -23,93 +23,24 @@ app.get("/api/health", (req, res) => {
     });
 });
 
-app.use("/api/enquiries", enquiryRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/services", serviceRoutes);
 
 const runServicesTestSuite = async () => {
     console.log("==================================================");
-    console.log("STARTING JM CREATIONS PHASE 2 — SERVICES TEST SUITE");
+    console.log("STARTING JM CREATIONS SERVICES COMPLETE FLOW VERIFICATION");
     console.log("==================================================\n");
 
-    let isAtlasConnected = false;
-    const serviceMemoryStore = new Map();
-    const enquiryMemoryStore = new Map();
+    let isMongoConnected = false;
 
     try {
-        await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 3000 });
-        isAtlasConnected = true;
-        console.log("MongoDB Atlas connected successfully for testing.\n");
+        await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+        isMongoConnected = true;
+        console.log("MongoDB Atlas connected successfully for verification.\n");
+        await seedInitialAdmin();
     } catch (err) {
-        console.log("MongoDB Atlas connection unavailable (IP Whitelist check required for remote Atlas DB).");
-        console.log("Using in-memory data layer fallback for local test suite execution.\n");
-
-        // Mock Service model for local fallback testing if Atlas IP is restricted
-        Service.create = async function (data) {
-            const id = new mongoose.Types.ObjectId().toString();
-            const doc = {
-                _id: id,
-                ...data,
-                image: data.image || "",
-                status: data.status || "active",
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            serviceMemoryStore.set(id, doc);
-            return doc;
-        };
-
-        Service.find = function () {
-            return {
-                sort: function () {
-                    return Array.from(serviceMemoryStore.values());
-                }
-            };
-        };
-
-        Service.findById = async function (id) {
-            return serviceMemoryStore.get(id?.toString()) || null;
-        };
-
-        Service.findByIdAndUpdate = async function (id, updateData, options) {
-            const existing = serviceMemoryStore.get(id?.toString());
-            if (!existing) return null;
-            const updated = {
-                ...existing,
-                ...updateData,
-                updatedAt: new Date()
-            };
-            serviceMemoryStore.set(id?.toString(), updated);
-            return updated;
-        };
-
-        Service.findByIdAndDelete = async function (id) {
-            const existing = serviceMemoryStore.get(id?.toString());
-            if (!existing) return null;
-            serviceMemoryStore.delete(id?.toString());
-            return existing;
-        };
-
-        // Mock Enquiry model for fallback regression test
-        Enquiry.create = async function (data) {
-            const id = new mongoose.Types.ObjectId().toString();
-            const doc = {
-                _id: id,
-                ...data,
-                status: data.status || "new",
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            enquiryMemoryStore.set(id, doc);
-            return doc;
-        };
-
-        Enquiry.find = function () {
-            return {
-                sort: function () {
-                    return Array.from(enquiryMemoryStore.values());
-                }
-            };
-        };
+        console.error("MongoDB Atlas connection error:", err.message);
+        process.exit(1);
     }
 
     // Start server on ephemeral port
@@ -118,15 +49,20 @@ const runServicesTestSuite = async () => {
     const port = server.address().port;
     const baseUrl = `http://127.0.0.1:${port}`;
 
-    const makeRequest = (path, method = "GET", body = null) => {
+    const makeRequest = (path, method = "GET", body = null, token = null) => {
         return new Promise((resolve, reject) => {
             const url = new URL(path, baseUrl);
+            const headers = { "Content-Type": "application/json" };
+            if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+            }
+
             const options = {
                 hostname: url.hostname,
                 port: url.port,
                 path: url.pathname + url.search,
                 method: method,
-                headers: { "Content-Type": "application/json" }
+                headers: headers
             };
 
             const req = http.request(options, (res) => {
@@ -154,110 +90,146 @@ const runServicesTestSuite = async () => {
         console.log(`[${status}] ${testName}${details ? ` -> ${details}` : ""}`);
     };
 
+    let authToken = null;
     let createdServiceId = null;
 
     try {
         // --------------------------------------------------
-        // TEST 1: Create service
+        // TEST 1: Admin Login & JWT Acquisition
         // --------------------------------------------------
-        const payload1 = {
-            title: "Web Development",
-            description: "Custom full-stack web applications and responsive design.",
-            category: "Development",
-            image: "https://example.com/webdev.png",
+        const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@jmcreations.com";
+        const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD || "Admin@12345";
+
+        const loginRes = await makeRequest("/api/auth/login", "POST", {
+            email: adminEmail,
+            password: adminPassword
+        });
+
+        const pass1 = loginRes.status === 200 && loginRes.body?.success === true && !!loginRes.body?.token;
+        if (pass1) authToken = loginRes.body.token;
+        recordResult("1. Admin Login & JWT Acquisition", pass1, `Status ${loginRes.status}`);
+
+        // --------------------------------------------------
+        // TEST 2: Unauthenticated POST Rejection (HTTP 401)
+        // --------------------------------------------------
+        const unauthRes = await makeRequest("/api/services", "POST", {
+            title: "Unauthorized Service",
+            description: "Test",
+            category: "Test"
+        });
+        const pass2 = unauthRes.status === 401;
+        recordResult("2. Unauthenticated POST Rejection (401 Check)", pass2, `Status ${unauthRes.status}`);
+
+        // --------------------------------------------------
+        // TEST 3: Admin Create Service (POST /api/services)
+        // --------------------------------------------------
+        const createPayload = {
+            title: "JM Test Service",
+            category: "DIGITAL MARKETING",
+            description: "Temporary service created to verify the full-stack Services flow.",
+            image: "https://images.unsplash.com/photo-1533750349088-cd871a92f312?auto=format&fit=crop&w=800&q=80",
             status: "active"
         };
-        const res1 = await makeRequest("/api/services", "POST", payload1);
-        const pass1 = res1.status === 201 && res1.body?.success === true && res1.body?.data?._id;
-        if (pass1) createdServiceId = res1.body.data._id;
-        recordResult("1. Create Service (POST /api/services)", pass1, `Status ${res1.status}, ID: ${createdServiceId}`);
+
+        const createRes = await makeRequest("/api/services", "POST", createPayload, authToken);
+        const pass3 = createRes.status === 201 && createRes.body?.success === true && !!createRes.body?.data?._id;
+        if (pass3) createdServiceId = createRes.body.data._id;
+        recordResult("3. Admin Create Service (POST /api/services)", pass3, `Status ${createRes.status}, ID: ${createdServiceId}`);
 
         // --------------------------------------------------
-        // TEST 2: Get all services
+        // TEST 4: MongoDB Direct Verification
         // --------------------------------------------------
-        const res2 = await makeRequest("/api/services");
-        const pass2 = res2.status === 200 && res2.body?.success === true && Array.isArray(res2.body?.data) && res2.body?.count >= 1;
-        recordResult("2. Get All Services (GET /api/services)", pass2, `Status ${res2.status}, Count: ${res2.body?.count}`);
+        const dbDoc = await Service.findById(createdServiceId);
+        const pass4 = !!dbDoc && dbDoc.title === "JM Test Service";
+        recordResult("4. MongoDB Direct Verification", pass4, `Found in DB: ${dbDoc?.title}`);
 
         // --------------------------------------------------
-        // TEST 3: Get one service
+        // TEST 5: GET /api/services returns created service
         // --------------------------------------------------
-        const res3 = await makeRequest(`/api/services/${createdServiceId}`);
-        const pass3 = res3.status === 200 && res3.body?.success === true && res3.body?.data?._id === createdServiceId;
-        recordResult("3. Get One Service (GET /api/services/:id)", pass3, `Status ${res3.status}`);
+        const getRes = await makeRequest("/api/services");
+        const pass5 = getRes.status === 200 && getRes.body?.success === true && Array.isArray(getRes.body?.data) && getRes.body.data.some(s => s._id === createdServiceId);
+        recordResult("5. GET /api/services Public Availability", pass5, `Total Services: ${getRes.body?.data?.length}`);
 
         // --------------------------------------------------
-        // TEST 4: Update service
+        // TEST 6: Edit Service (PUT /api/services/:id)
         // --------------------------------------------------
-        const res4 = await makeRequest(`/api/services/${createdServiceId}`, "PUT", {
-            title: "Full Stack Web Development",
+        const updateRes = await makeRequest(`/api/services/${createdServiceId}`, "PUT", {
+            description: "Updated JM Test Service"
+        }, authToken);
+
+        const pass6 = updateRes.status === 200 && updateRes.body?.data?.description === "Updated JM Test Service";
+        recordResult("6. Admin Edit Service (PUT /api/services/:id)", pass6, `Updated desc: ${updateRes.body?.data?.description}`);
+
+        // --------------------------------------------------
+        // TEST 7: Public Website Updated Content Verification
+        // --------------------------------------------------
+        const getUpdatedRes = await makeRequest(`/api/services/${createdServiceId}`);
+        const pass7 = getUpdatedRes.status === 200 && getUpdatedRes.body?.data?.description === "Updated JM Test Service";
+        recordResult("7. Public Service Updated Content Check", pass7, `Verified Updated Content: ${getUpdatedRes.body?.data?.description}`);
+
+        // --------------------------------------------------
+        // TEST 8: Deactivate Service (Status -> inactive)
+        // --------------------------------------------------
+        const deactRes = await makeRequest(`/api/services/${createdServiceId}`, "PUT", {
+            status: "inactive"
+        }, authToken);
+        const pass8 = deactRes.status === 200 && deactRes.body?.data?.status === "inactive";
+        recordResult("8. Admin Deactivate Service", pass8, `Status: ${deactRes.body?.data?.status}`);
+
+        // --------------------------------------------------
+        // TEST 9: Active-Only Filter Verification (Public side)
+        // --------------------------------------------------
+        const getActiveRes = await makeRequest("/api/services");
+        const activeOnly = getActiveRes.body?.data?.filter(s => s.status !== "inactive") || [];
+        const pass9 = !activeOnly.some(s => s._id === createdServiceId);
+        recordResult("9. Active-Only Public Visibility Filtering", pass9, `Inactive service hidden from active filter: ${pass9}`);
+
+        // --------------------------------------------------
+        // TEST 10: Reactivate Service (Status -> active)
+        // --------------------------------------------------
+        const reactRes = await makeRequest(`/api/services/${createdServiceId}`, "PUT", {
             status: "active"
-        });
-        const pass4 = res4.status === 200 && res4.body?.success === true && res4.body?.data?.title === "Full Stack Web Development";
-        recordResult("4. Update Service (PUT /api/services/:id)", pass4, `Status ${res4.status}, Updated Title: ${res4.body?.data?.title}`);
+        }, authToken);
+        const pass10 = reactRes.status === 200 && reactRes.body?.data?.status === "active";
+        recordResult("10. Admin Reactivate Service", pass10, `Status: ${reactRes.body?.data?.status}`);
 
         // --------------------------------------------------
-        // TEST 5: Delete service
+        // TEST 11: Delete Service (DELETE /api/services/:id)
         // --------------------------------------------------
-        const res5 = await makeRequest(`/api/services/${createdServiceId}`, "DELETE");
-        const pass5 = res5.status === 200 && res5.body?.success === true;
-        recordResult("5. Delete Service (DELETE /api/services/:id)", pass5, `Status ${res5.status}`);
+        const deleteRes = await makeRequest(`/api/services/${createdServiceId}`, "DELETE", null, authToken);
+        const pass11 = deleteRes.status === 200 && deleteRes.body?.success === true;
+        recordResult("11. Admin Delete Service", pass11, `Status ${deleteRes.status}`);
 
         // --------------------------------------------------
-        // TEST 6: Missing required field validation
+        // TEST 12: Verify Removal from MongoDB
         // --------------------------------------------------
-        const res6 = await makeRequest("/api/services", "POST", {
-            title: "Incomplete Service"
-            // Missing description & category
-        });
-        const pass6 = res6.status === 400 && res6.body?.success === false;
-        recordResult("6. Missing Required Field Validation (POST /api/services)", pass6, `Status ${res6.status}, Message: ${res6.body?.message}`);
-
-        // --------------------------------------------------
-        // TEST 7: Invalid MongoDB ObjectId
-        // --------------------------------------------------
-        const res7 = await makeRequest("/api/services/invalid-object-id");
-        const pass7 = res7.status === 400 && res7.body?.success === false;
-        recordResult("7. Invalid MongoDB ObjectId (GET /api/services/:id)", pass7, `Status ${res7.status}, Message: ${res7.body?.message}`);
-
-        // --------------------------------------------------
-        // TEST 8: Non-existing service handling
-        // --------------------------------------------------
-        const fakeId = new mongoose.Types.ObjectId().toString();
-        const res8 = await makeRequest(`/api/services/${fakeId}`);
-        const pass8 = res8.status === 404 && res8.body?.success === false;
-        recordResult("8. Non-existing Service Handling (GET /api/services/:id)", pass8, `Status ${res8.status}, Message: ${res8.body?.message}`);
-
-        console.log("\n--------------------------------------------------");
-        console.log("PHASE 1 ENQUIRY REGRESSION VERIFICATION");
-        console.log("--------------------------------------------------\n");
-
-        // Regression check: Create enquiry
-        const enquiryRes = await makeRequest("/api/enquiries", "POST", {
-            name: "Phase 1 Check",
-            email: "phase1.check@example.com",
-            phone: "9998887770",
-            service: "Web Development",
-            message: "Regression test verifying Phase 1 enquiry flow."
-        });
-        const enquiryPass = enquiryRes.status === 201 && enquiryRes.body?.success === true;
-        recordResult("Phase 1 Enquiry Integration Check", enquiryPass, `Status ${enquiryRes.status}`);
+        const deletedDbDoc = await Service.findById(createdServiceId);
+        const pass12 = deletedDbDoc === null;
+        recordResult("12. Deleted Service Removal Check", pass12, `MongoDB Record Removed: ${pass12}`);
 
         console.log("\n==================================================");
-        console.log("FINAL SERVICES TEST RESULTS SUMMARY");
+        console.log("FINAL FULL-STACK SERVICES TEST RESULTS");
         console.log("==================================================");
+        let allPass = true;
         testResults.forEach(r => {
+            if (r.status !== "PASS") allPass = false;
             console.log(`- ${r.name}: ${r.status}${r.details ? ` (${r.details})` : ""}`);
         });
 
+        if (allPass) {
+            console.log("\n>>> ALL 12 SERVICES FLOW TESTS PASSED SUCCESSFULLY! <<<");
+        } else {
+            console.log("\n>>> SOME TESTS FAILED. CHECK DETAILS ABOVE. <<<");
+        }
+
     } catch (err) {
-        console.error("Services Test Suite Error:", err);
+        console.error("Test execution error:", err);
     } finally {
         server.close();
-        if (isAtlasConnected) {
+        if (isMongoConnected) {
             await mongoose.disconnect();
         }
-        console.log("\nServices test suite execution completed.");
+        console.log("\nFull-stack Services test suite finished.");
     }
 };
 

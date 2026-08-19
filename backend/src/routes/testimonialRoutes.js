@@ -1,4 +1,5 @@
 const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
 
 const {
     createTestimonial,
@@ -10,24 +11,25 @@ const {
 
 const router = express.Router();
 
-// Create a new testimonial
+// Create a new testimonial (Protected)
 // POST /api/testimonials
-router.post("/", createTestimonial);
+router.post("/", protect, createTestimonial);
 
-// Get all testimonials
+// Get all testimonials (Public)
 // GET /api/testimonials
 router.get("/", getTestimonials);
 
-// Get a single testimonial by ID
+// Get a single testimonial by ID (Public)
 // GET /api/testimonials/:id
 router.get("/:id", getTestimonialById);
 
-// Update a testimonial
+// Update a testimonial (Protected)
 // PUT /api/testimonials/:id
-router.put("/:id", updateTestimonial);
+router.put("/:id", protect, updateTestimonial);
 
-// Delete a testimonial
+// Delete a testimonial (Protected)
 // DELETE /api/testimonials/:id
-router.delete("/:id", deleteTestimonial);
+router.delete("/:id", protect, deleteTestimonial);
 
 module.exports = router;
+
