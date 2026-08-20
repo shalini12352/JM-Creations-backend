@@ -6,7 +6,7 @@ const USER_KEY = 'jmc_user';
 export const authService = {
   // Login with email and password
   async login(email, password) {
-    const data = await api.post('/api/auth/login', { email, password });
+    const data = await api.post('/auth/login', { email, password });
     if (data.success && data.token) {
       localStorage.setItem(TOKEN_KEY, data.token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));

@@ -100,7 +100,7 @@ const runServicesTestSuite = async () => {
         const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@jmcreations.com";
         const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD || "Admin@12345";
 
-        const loginRes = await makeRequest("/api/auth/login", "POST", {
+        const loginRes = await makeRequest("/auth/login", "POST", {
             email: adminEmail,
             password: adminPassword
         });

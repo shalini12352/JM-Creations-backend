@@ -150,7 +150,7 @@ const runComprehensiveAudit = async () => {
         const testEmail = (process.env.DEFAULT_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@jmcreations.com").toLowerCase().trim();
         const testPassword = process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD || "jmcreation@123";
 
-        const loginRes = await httpRequest("/api/auth/login", "POST", {
+        const loginRes = await httpRequest("/auth/login", "POST", {
             email: testEmail,
             password: testPassword
         });
