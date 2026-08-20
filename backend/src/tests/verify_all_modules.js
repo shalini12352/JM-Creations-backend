@@ -164,7 +164,7 @@ const runComprehensiveAudit = async () => {
         auditResults.loginSuccess = true;
         console.log("✓ Admin Login Successful. JWT Token acquired.");
 
-        const meRes = await httpRequest("/api/auth/me", "GET", null, adminToken);
+        const meRes = await httpRequest("/auth/me", "GET", null, adminToken);
         if (meRes.status === 200 && meRes.body.success && meRes.body.user?.email === "admin@jmcreations.com") {
             auditResults.authMeSuccess = true;
             console.log(`✓ Auth Me Endpoint Verified for Admin: ${meRes.body.user.email}`);
