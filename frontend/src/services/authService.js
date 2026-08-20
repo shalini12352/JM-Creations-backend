@@ -20,7 +20,7 @@ export const authService = {
     if (!token) {
       throw { status: 401, message: 'No authentication token found' };
     }
-    const data = await api.get('/auth/me');
+    const data = await api.get('/api/auth/me');
     if (data.success && data.user) {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
     }
