@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, PhoneCall, ArrowRight } from 'lucide-react';
 import siteContentService from '../../services/siteContentService';
@@ -9,6 +9,51 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteContent, setSiteContent] = useState(null);
   const location = useLocation();
+
+  const clickCountRef = useRef(0);
+  const timerRef = useRef(null);
+  const logoRef = useRef(null);
+
+  useEffect(() => {
+    const handleDocumentClick = (event) => {
+      if (logoRef.current && !logoRef.current.contains(event.target)) {
+        clickCountRef.current = 0;
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+      }
+    };
+
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  const handleLogoClick = (e) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    clickCountRef.current += 1;
+
+    if (clickCountRef.current >= 5) {
+      clickCountRef.current = 0;
+      e.preventDefault();
+      const adminPanelUrl = import.meta.env.VITE_ADMIN_PANEL_URL || '/admin';
+      window.location.href = adminPanelUrl;
+      return;
+    }
+
+    timerRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+      timerRef.current = null;
+    }, 2000);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -59,7 +104,12 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo & Brand Title - Title MUST remain 100% White */}
-          <Link to="/" className="flex items-center gap-3.5 group shrink-0">
+          <Link
+            to="/"
+            ref={logoRef}
+            onClick={handleLogoClick}
+            className="flex items-center gap-3.5 group shrink-0"
+          >
             <div className="p-1.5 sm:p-2 bg-[#EAB308] rounded-xl shadow-lg shadow-[#EAB308]/20 transition-transform group-hover:scale-105">
               <img
                 src={officialLogo}
